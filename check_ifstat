@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from argparse import ArgumentParser, Namespace
 from subprocess import check_output
+import sys
 
 
 def main(arguments: Namespace):
@@ -18,6 +19,16 @@ def main(arguments: Namespace):
         in_bytes=in_bytes,
         out_bytes=out_bytes))
 
+    if in_bytes > arguments.critical_in * 1000:
+        sys.exit(2)
+    elif in_bytes > arguments.warning_in * 1000:
+        sys.exit(1)
+
+    if out_bytes > arguments.critical_out * 1000:
+        sys.exit(2)
+    elif out_bytes > arguments.warning_out * 1000:
+        sys.exit(1)
+
 
 if __name__ == '__main__':
     parser = ArgumentParser()
@@ -25,4 +36,15 @@ if __name__ == '__main__':
         help='Interface to messure (e.g. eth0)')
     parser.add_argument('-d', '--delay', default=60,
         help='Delay to measure in seconds. The average traffic over that period will be printed.')
+
+    parser.add_argument('--warning-in', default=60, type=float,
+        help='MiB/s Tx warning threshold.')
+    parser.add_argument('--critical-in', default=65, type=float,
+        help='MiB/s Tx warning threshold.')
+
+    parser.add_argument('--warning-out', default=60, type=float,
+        help='MiB/s Rx warning threshold.')
+    parser.add_argument('--critical-out', default=65, type=float,
+        help='MiB/s Rx warning threshold.')
+
     main(parser.parse_args())
