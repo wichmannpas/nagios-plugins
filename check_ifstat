@@ -33,18 +33,18 @@ def main(arguments: Namespace):
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('-i', '--interface', required=True,
-        help='Interface to messure (e.g. eth0)')
+        help='Interface to measure (e.g. eth0)')
     parser.add_argument('-d', '--delay', default=60, type=int,
         help='Delay to measure in seconds. The average traffic over that period will be printed.')
 
     parser.add_argument('--warning-in', default=60, type=float,
-        help='MiB/s Tx warning threshold.')
+        help='MB/s Tx warning threshold.')
     parser.add_argument('--critical-in', default=65, type=float,
-        help='MiB/s Tx warning threshold.')
+        help='MB/s Tx warning threshold.')
 
     parser.add_argument('--warning-out', default=60, type=float,
-        help='MiB/s Rx warning threshold.')
+        help='MB/s Rx warning threshold.')
     parser.add_argument('--critical-out', default=65, type=float,
-        help='MiB/s Rx warning threshold.')
+        help='MB/s Rx warning threshold.')
 
     main(parser.parse_args())
