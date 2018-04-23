@@ -1,0 +1,115 @@
+#!/usr/bin/env python3
+"""
+There are at least two different flavors of ifstat.
+This one uses the ifstat flavor shipped from iproute2
+written by Alexey Kuznetsov.
+
+For this to yield correct values, the ifstat background
+process needs to be started using ifstat -d <INTERVAL>.
+That process periodically collects data and writes to
+ifstat-specific history files.
+
+You *must not provide untrusted input* using the parameters.
+The remote command is (by design) an arbitrary code execution!
+"""
+from argparse import ArgumentParser, Namespace
+from subprocess import check_output
+import sys
+
+
+def main(arguments: Namespace):
+    # make sure that the ifstat background process is running on the remote
+
+    output = _run_remote_command(arguments, ' '.join([
+        'ifstat',
+        '--zeros',
+        '--interval', str(arguments.delay),
+    ]))
+    output = [line.decode() for line in output.splitlines()]
+    output = list(filter(
+        lambda line: line.startswith(arguments.interface), 
+        output))
+    if len(output) != 1:
+        raise AssertionError('invalid interface')
+    output = output[0]
+
+    in_bytes, out_bytes = (_parse_value(value) for value in output.split()[6::2])
+
+    print('Traffic for {interface} -- Rx: {in_bytes:.2f} KB/s // Tx: {out_bytes:.2f} KB/s'.format(
+        interface=arguments.interface,
+        in_bytes=in_bytes,
+        out_bytes=out_bytes))
+
+    if in_bytes > arguments.critical_in * 1000:
+        sys.exit(2)
+    elif in_bytes > arguments.warning_in * 1000:
+        sys.exit(1)
+
+    if out_bytes > arguments.critical_out * 1000:
+        sys.exit(2)
+    elif out_bytes > arguments.warning_out * 1000:
+        sys.exit(1)
+
+
+def _parse_value(val: str) -> float:
+    """
+    Parse value and convert it to Kibibyte.
+    This assumes that 1K = 1KiB = 1024 and thus not using
+    the SI system (i.e., KB).
+    """
+    if val.endswith('G'):
+        return float(val[:-1]) * 1024 ** 2
+    elif val.endswith('M'):
+        return float(val[:-1]) * 1024
+    elif val.endswith('K'):
+        return float(val[:-1])
+    elif val.endswith('B'):
+        return float(val[:-1]) / 1024
+    return float(val) / 1024
+
+
+def _run_remote_command(arguments: Namespace, command: str) -> str:
+    """
+    Do not pass untrusted input to this method! The remote command
+    uses a full (remote) shell for evaluation!
+    """
+    local_command = [
+        'ssh',
+    ]
+    if arguments.port:
+        local_command += ['-p', arguments.port]
+    if arguments.ssh_key:
+        local_command += ['-i', arguments.ssh_key]
+    local_command += [
+        arguments.remote,
+        command,
+    ]
+    return check_output(local_command)
+
+
+if __name__ == '__main__':
+    parser = ArgumentParser()
+
+    parser.add_argument('-r', '--remote', required=True,
+        help='Remote SSH host (and optionally user, i.e., user@host)')
+    parser.add_argument('-p', '--port',
+        help='Remote SSH port')
+    parser.add_argument('-s', '--ssh-key',
+        help='Path to the private SSH key file')
+
+    parser.add_argument('-i', '--interface', required=True,
+        help='Interface to measure (e.g. eth0)')
+    parser.add_argument('-d', '--delay', default=60, type=int,
+        help='Delay to measure in seconds. The average traffic over that period will be printed.')
+
+    parser.add_argument('--warning-in', default=60, type=float,
+        help='MB/s Tx warning threshold.')
+    parser.add_argument('--critical-in', default=65, type=float,
+        help='MB/s Tx warning threshold.')
+
+    parser.add_argument('--warning-out', default=60, type=float,
+        help='MB/s Rx warning threshold.')
+    parser.add_argument('--critical-out', default=65, type=float,
+        help='MB/s Rx warning threshold.')
+
+    main(parser.parse_args())
