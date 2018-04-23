@@ -19,6 +19,9 @@ import sys
 
 def main(arguments: Namespace):
     # make sure that the ifstat background process is running on the remote
+    _run_remote_command(
+        arguments,
+        '(ps aux | grep ifstat | grep -vq grep) || ifstat -d 5')
 
     output = _run_remote_command(arguments, ' '.join([
         'ifstat',
