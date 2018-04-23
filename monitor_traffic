@@ -1,0 +1,53 @@
+#!/usr/bin/env python2
+"""
+A small script monitoring devices to provide a functionality
+similar to that provided by ifstat.
+"""
+from time import sleep
+
+STAT_FILE_PATH = '/tmp/traffic_stats'
+INTERVAL = 10
+
+
+def monitor():
+    old = parse_net_dev()
+    while True:
+        new = parse_net_dev()
+
+        stats = ''
+
+        for interface in new:
+            rx_delta = new[interface][0] - old[interface][0]
+            rx_rate = rx_delta / INTERVAL
+            tx_delta = new[interface][1] - old[interface][1]
+            tx_rate = tx_delta / INTERVAL
+            stats += '{} {} {}\n'.format(interface, rx_rate, tx_rate)
+
+        # python2.4 does not support the with statement
+        open(STAT_FILE_PATH, 'w').write(stats)
+
+        old = new
+        sleep(INTERVAL)
+
+
+def parse_net_dev():
+    """
+    Parse the contents of /proc/net/dev and return a dict
+    mapping from the interface name to rx, tx bytes.
+    """
+    # python2.4 does not support the with statement
+    result = {}
+
+    dev = open('/proc/net/dev', 'r')
+    for line in dev:
+        if ':' not in line:
+            continue
+        interface, data = line.split(':')
+        columns = data.split()
+        rx_bytes, tx_bytes = int(columns[0]), int(columns[8])
+        result[interface.strip()] = rx_bytes, tx_bytes
+    return result
+
+
+if __name__ == '__main__':
+    monitor()
