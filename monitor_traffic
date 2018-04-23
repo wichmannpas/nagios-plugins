@@ -21,7 +21,7 @@ def monitor():
             rx_rate = rx_delta / INTERVAL
             tx_delta = new[interface][1] - old[interface][1]
             tx_rate = tx_delta / INTERVAL
-            stats += '{} {} {}\n'.format(interface, rx_rate, tx_rate)
+            stats += ' '.join([interface, str(rx_rate), str(tx_rate)]) + '\n'
 
         # python2.4 does not support the with statement
         open(STAT_FILE_PATH, 'w').write(stats)
